@@ -6,30 +6,6 @@
     <title>Sistema de Gerenciamento Escolar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-        
-        // CONFIGURAÇÃO DO FIREBASE - SUBSTITUA PELOS SEUS DADOS
-        const firebaseConfig = {
-            apiKey: "sua-api-key-aqui",
-            authDomain: "seu-projeto.firebaseapp.com",
-            projectId: "seu-projeto-id",
-            storageBucket: "seu-projeto.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "sua-app-id"
-        };
-
-        // Inicializar Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        // Tornar disponível globalmente
-        window.db = db;
-        window.firestore = { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where, orderBy };
-    </script>
-    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -336,11 +312,29 @@
 
     <script>
         // Global variables
-        let students = [];
-        let classes = [];
-        let grades = [];
-        let attendance = [];
-        let isFirebaseConnected = false;
+        let students = JSON.parse(localStorage.getItem('students')) || [];
+        let classes = JSON.parse(localStorage.getItem('classes')) || [];
+        let grades = JSON.parse(localStorage.getItem('grades')) || [];
+        let attendance = JSON.parse(localStorage.getItem('attendance')) || [];
+
+        // Initialize with sample data if empty
+        if (classes.length === 0) {
+            classes = [
+                { id: '1', name: '1º Ano A', teacher: 'Prof. Maria Silva', capacity: 30 },
+                { id: '2', name: '2º Ano B', teacher: 'Prof. João Santos', capacity: 25 },
+                { id: '3', name: '3º Ano C', teacher: 'Prof. Ana Costa', capacity: 28 }
+            ];
+            saveData();
+        }
+
+        if (students.length === 0) {
+            students = [
+                { id: '1', name: 'Pedro Silva', email: 'pedro@email.com', phone: '(11) 99999-9999', classId: '1' },
+                { id: '2', name: 'Maria Santos', email: 'maria@email.com', phone: '(11) 88888-8888', classId: '1' },
+                { id: '3', name: 'João Costa', email: 'joao@email.com', phone: '(11) 77777-7777', classId: '2' }
+            ];
+            saveData();
+        }
 
         // Utility functions
         function showNotification(message, type = 'success') {
@@ -354,109 +348,27 @@
             }, 3000);
         }
 
-        function updateConnectionStatus(connected) {
+        function updateConnectionStatus() {
             const status = document.getElementById('connectionStatus');
             const dot = status.querySelector('div');
             const text = status.querySelector('span');
             
-            if (connected) {
-                dot.className = 'w-3 h-3 bg-green-500 rounded-full';
-                text.textContent = 'Conectado';
-                isFirebaseConnected = true;
-            } else {
-                dot.className = 'w-3 h-3 bg-red-500 rounded-full';
-                text.textContent = 'Desconectado';
-                isFirebaseConnected = false;
-            }
+            dot.className = 'w-3 h-3 bg-green-500 rounded-full';
+            text.textContent = 'Sistema Local';
         }
 
-        // Firebase functions
-        async function loadAllData() {
-            if (!window.db) {
-                showNotification('Firebase não configurado. Usando dados locais.', 'error');
-                loadLocalData();
-                return;
-            }
-
-            try {
-                // Load classes
-                const classesSnapshot = await window.firestore.getDocs(window.firestore.collection(window.db, 'classes'));
-                classes = classesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                // Load students
-                const studentsSnapshot = await window.firestore.getDocs(window.firestore.collection(window.db, 'students'));
-                students = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                // Load grades
-                const gradesSnapshot = await window.firestore.getDocs(window.firestore.collection(window.db, 'grades'));
-                grades = gradesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                // Load attendance
-                const attendanceSnapshot = await window.firestore.getDocs(window.firestore.collection(window.db, 'attendance'));
-                attendance = attendanceSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                updateConnectionStatus(true);
-                showNotification('Dados carregados com sucesso!');
-                
-                // Initialize with sample data if empty
-                if (classes.length === 0) {
-                    await initializeSampleData();
-                }
-                
-            } catch (error) {
-                console.error('Erro ao carregar dados:', error);
-                updateConnectionStatus(false);
-                showNotification('Erro ao conectar com o banco. Usando dados locais.', 'error');
-                loadLocalData();
-            }
-        }
-
-        async function initializeSampleData() {
-            const sampleClasses = [
-                { name: '1º Ano A', teacher: 'Prof. Maria Silva', capacity: 30 },
-                { name: '2º Ano B', teacher: 'Prof. João Santos', capacity: 25 },
-                { name: '3º Ano C', teacher: 'Prof. Ana Costa', capacity: 28 }
-            ];
-
-            for (const cls of sampleClasses) {
-                await window.firestore.addDoc(window.firestore.collection(window.db, 'classes'), cls);
-            }
-
-            await loadAllData();
-        }
-
-        function loadLocalData() {
-            students = JSON.parse(localStorage.getItem('students')) || [];
-            classes = JSON.parse(localStorage.getItem('classes')) || [];
-            grades = JSON.parse(localStorage.getItem('grades')) || [];
-            attendance = JSON.parse(localStorage.getItem('attendance')) || [];
-
-            if (classes.length === 0) {
-                classes = [
-                    { id: '1', name: '1º Ano A', teacher: 'Prof. Maria Silva', capacity: 30 },
-                    { id: '2', name: '2º Ano B', teacher: 'Prof. João Santos', capacity: 25 },
-                    { id: '3', name: '3º Ano C', teacher: 'Prof. Ana Costa', capacity: 28 }
-                ];
-                saveLocalData();
-            }
-        }
-
-        function saveLocalData() {
+        // Save data to localStorage
+        function saveData() {
             localStorage.setItem('students', JSON.stringify(students));
             localStorage.setItem('classes', JSON.stringify(classes));
             localStorage.setItem('grades', JSON.stringify(grades));
             localStorage.setItem('attendance', JSON.stringify(attendance));
         }
 
-        async function syncData() {
-            if (isFirebaseConnected) {
-                await loadAllData();
-                updateDashboard();
-                renderCurrentSection();
-                showNotification('Dados sincronizados!');
-            } else {
-                showNotification('Não é possível sincronizar. Verifique a conexão.', 'error');
-            }
+        function syncData() {
+            showNotification('Dados salvos localmente!');
+            updateDashboard();
+            renderCurrentSection();
         }
 
         // Navigation
@@ -528,7 +440,7 @@
         }
 
         // Student functions
-        async function addStudent() {
+        function addStudent() {
             const name = document.getElementById('studentName').value;
             const email = document.getElementById('studentEmail').value;
             const phone = document.getElementById('studentPhone').value;
@@ -536,30 +448,19 @@
 
             if (name && email && classId) {
                 const newStudent = {
+                    id: Date.now().toString(),
                     name: name,
                     email: email,
                     phone: phone || '',
                     classId: classId,
                     createdAt: new Date().toISOString()
                 };
-
-                try {
-                    if (isFirebaseConnected) {
-                        const docRef = await window.firestore.addDoc(window.firestore.collection(window.db, 'students'), newStudent);
-                        newStudent.id = docRef.id;
-                    } else {
-                        newStudent.id = Date.now().toString();
-                    }
-                    
-                    students.push(newStudent);
-                    saveLocalData();
-                    renderStudents();
-                    clearStudentForm();
-                    showNotification('Aluno adicionado com sucesso!');
-                } catch (error) {
-                    console.error('Erro ao adicionar aluno:', error);
-                    showNotification('Erro ao adicionar aluno', 'error');
-                }
+                
+                students.push(newStudent);
+                saveData();
+                renderStudents();
+                clearStudentForm();
+                showNotification('Aluno adicionado com sucesso!');
             } else {
                 showNotification('Por favor, preencha todos os campos obrigatórios!', 'error');
             }
@@ -572,23 +473,14 @@
             document.getElementById('studentClass').value = '';
         }
 
-        async function deleteStudent(id) {
+        function deleteStudent(id) {
             if (confirm('Tem certeza que deseja excluir este aluno?')) {
-                try {
-                    if (isFirebaseConnected) {
-                        await window.firestore.deleteDoc(window.firestore.doc(window.db, 'students', id));
-                    }
-                    
-                    students = students.filter(student => student.id !== id);
-                    grades = grades.filter(grade => grade.studentId !== id);
-                    attendance = attendance.filter(record => record.studentId !== id);
-                    saveLocalData();
-                    renderStudents();
-                    showNotification('Aluno excluído com sucesso!');
-                } catch (error) {
-                    console.error('Erro ao excluir aluno:', error);
-                    showNotification('Erro ao excluir aluno', 'error');
-                }
+                students = students.filter(student => student.id !== id);
+                grades = grades.filter(grade => grade.studentId !== id);
+                attendance = attendance.filter(record => record.studentId !== id);
+                saveData();
+                renderStudents();
+                showNotification('Aluno excluído com sucesso!');
             }
         }
 
@@ -642,36 +534,25 @@
         }
 
         // Class functions
-        async function addClass() {
+        function addClass() {
             const name = document.getElementById('className').value;
             const teacher = document.getElementById('classTeacher').value;
             const capacity = parseInt(document.getElementById('classCapacity').value) || 30;
 
             if (name && teacher) {
                 const newClass = {
+                    id: Date.now().toString(),
                     name: name,
                     teacher: teacher,
                     capacity: capacity,
                     createdAt: new Date().toISOString()
                 };
-
-                try {
-                    if (isFirebaseConnected) {
-                        const docRef = await window.firestore.addDoc(window.firestore.collection(window.db, 'classes'), newClass);
-                        newClass.id = docRef.id;
-                    } else {
-                        newClass.id = Date.now().toString();
-                    }
-                    
-                    classes.push(newClass);
-                    saveLocalData();
-                    renderClasses();
-                    clearClassForm();
-                    showNotification('Turma adicionada com sucesso!');
-                } catch (error) {
-                    console.error('Erro ao adicionar turma:', error);
-                    showNotification('Erro ao adicionar turma', 'error');
-                }
+                
+                classes.push(newClass);
+                saveData();
+                renderClasses();
+                clearClassForm();
+                showNotification('Turma adicionada com sucesso!');
             } else {
                 showNotification('Por favor, preencha todos os campos!', 'error');
             }
@@ -683,21 +564,12 @@
             document.getElementById('classCapacity').value = '';
         }
 
-        async function deleteClass(id) {
+        function deleteClass(id) {
             if (confirm('Tem certeza que deseja excluir esta turma?')) {
-                try {
-                    if (isFirebaseConnected) {
-                        await window.firestore.deleteDoc(window.firestore.doc(window.db, 'classes', id));
-                    }
-                    
-                    classes = classes.filter(cls => cls.id !== id);
-                    saveLocalData();
-                    renderClasses();
-                    showNotification('Turma excluída com sucesso!');
-                } catch (error) {
-                    console.error('Erro ao excluir turma:', error);
-                    showNotification('Erro ao excluir turma', 'error');
-                }
+                classes = classes.filter(cls => cls.id !== id);
+                saveData();
+                renderClasses();
+                showNotification('Turma excluída com sucesso!');
             }
         }
 
@@ -742,7 +614,7 @@
         }
 
         // Grade functions
-        async function addGrade() {
+        function addGrade() {
             const studentId = document.getElementById('gradeStudent').value;
             const subject = document.getElementById('gradeSubject').value;
             const value = parseFloat(document.getElementById('gradeValue').value);
@@ -751,6 +623,7 @@
 
             if (studentId && subject && !isNaN(value) && date && value >= 0 && value <= 10) {
                 const newGrade = {
+                    id: Date.now().toString(),
                     studentId: studentId,
                     subject: subject,
                     value: value,
@@ -758,24 +631,12 @@
                     date: date,
                     createdAt: new Date().toISOString()
                 };
-
-                try {
-                    if (isFirebaseConnected) {
-                        const docRef = await window.firestore.addDoc(window.firestore.collection(window.db, 'grades'), newGrade);
-                        newGrade.id = docRef.id;
-                    } else {
-                        newGrade.id = Date.now().toString();
-                    }
-                    
-                    grades.push(newGrade);
-                    saveLocalData();
-                    renderGrades();
-                    clearGradeForm();
-                    showNotification('Nota adicionada com sucesso!');
-                } catch (error) {
-                    console.error('Erro ao adicionar nota:', error);
-                    showNotification('Erro ao adicionar nota', 'error');
-                }
+                
+                grades.push(newGrade);
+                saveData();
+                renderGrades();
+                clearGradeForm();
+                showNotification('Nota adicionada com sucesso!');
             } else {
                 showNotification('Por favor, preencha todos os campos corretamente! A nota deve estar entre 0 e 10.', 'error');
             }
@@ -789,21 +650,12 @@
             document.getElementById('gradeDate').value = '';
         }
 
-        async function deleteGrade(id) {
+        function deleteGrade(id) {
             if (confirm('Tem certeza que deseja excluir esta nota?')) {
-                try {
-                    if (isFirebaseConnected) {
-                        await window.firestore.deleteDoc(window.firestore.doc(window.db, 'grades', id));
-                    }
-                    
-                    grades = grades.filter(grade => grade.id !== id);
-                    saveLocalData();
-                    renderGrades();
-                    showNotification('Nota excluída com sucesso!');
-                } catch (error) {
-                    console.error('Erro ao excluir nota:', error);
-                    showNotification('Erro ao excluir nota', 'error');
-                }
+                grades = grades.filter(grade => grade.id !== id);
+                saveData();
+                renderGrades();
+                showNotification('Nota excluída com sucesso!');
             }
         }
 
@@ -903,51 +755,31 @@
             });
         }
 
-        async function saveAttendance() {
+        function saveAttendance() {
             const checkboxes = document.querySelectorAll('.attendance-checkbox');
             
-            try {
-                for (const checkbox of checkboxes) {
-                    const studentId = checkbox.dataset.studentId;
-                    const date = checkbox.dataset.date;
-                    const present = checkbox.checked;
+            checkboxes.forEach(checkbox => {
+                const studentId = checkbox.dataset.studentId;
+                const date = checkbox.dataset.date;
+                const present = checkbox.checked;
 
-                    // Remove existing record for this student and date
-                    const existingRecord = attendance.find(record => 
-                        record.studentId === studentId && record.date === date
-                    );
+                // Remove existing record for this student and date
+                attendance = attendance.filter(record => 
+                    !(record.studentId === studentId && record.date === date)
+                );
 
-                    if (existingRecord) {
-                        if (isFirebaseConnected) {
-                            await window.firestore.deleteDoc(window.firestore.doc(window.db, 'attendance', existingRecord.id));
-                        }
-                        attendance = attendance.filter(record => record.id !== existingRecord.id);
-                    }
+                // Add new record
+                attendance.push({
+                    id: Date.now().toString() + Math.random(),
+                    studentId: studentId,
+                    date: date,
+                    present: present,
+                    createdAt: new Date().toISOString()
+                });
+            });
 
-                    // Add new record
-                    const newRecord = {
-                        studentId: studentId,
-                        date: date,
-                        present: present,
-                        createdAt: new Date().toISOString()
-                    };
-
-                    if (isFirebaseConnected) {
-                        const docRef = await window.firestore.addDoc(window.firestore.collection(window.db, 'attendance'), newRecord);
-                        newRecord.id = docRef.id;
-                    } else {
-                        newRecord.id = Date.now().toString() + Math.random();
-                    }
-
-                    attendance.push(newRecord);
-                }
-
-                saveLocalData();
-                showNotification('Presença salva com sucesso!');
-            } catch (error) {
-                console.error('Erro ao salvar presença:', error);
-                showNotification('Erro ao salvar presença', 'error');
-            }
+            saveData();
+            showNotification('Presença salva com sucesso!');
         }
 
         function renderAttendance() {
@@ -1047,18 +879,18 @@
         }
 
         // Initialize the application
-        document.addEventListener('DOMContentLoaded', async function() {
+        document.addEventListener('DOMContentLoaded', function() {
             // Set today's date as default
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('attendanceDate').value = today;
             document.getElementById('gradeDate').value = today;
             
-            // Load data
-            await loadAllData();
+            // Update connection status
+            updateConnectionStatus();
             
             // Show dashboard by default
             showSection('dashboard');
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96f10f9622358913',t:'MTc1NTE4MDg5MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96f120dbe5e3e022',t:'MTc1NTE4MTU5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
